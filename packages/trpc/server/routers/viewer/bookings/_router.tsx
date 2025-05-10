@@ -1,3 +1,5 @@
+import type { CreateInnerContextOptions } from "@calcom/trpc/server/createContext";
+
 import authedProcedure from "../../../procedures/authedProcedure";
 import publicProcedure from "../../../procedures/publicProcedure";
 import { router } from "../../../trpc";
@@ -7,8 +9,10 @@ import { ZEditLocationInputSchema } from "./editLocation.schema";
 import { ZFindInputSchema } from "./find.schema";
 import { ZGetInputSchema } from "./get.schema";
 import { ZGetBookingAttendeesInputSchema } from "./getBookingAttendees.schema";
+import { ZGetBookingInternalNotesInputSchema } from "./getInternalNotes.schema";
 import { ZInstantBookingInputSchema } from "./getInstantBookingLocation.schema";
 import { ZRequestRescheduleInputSchema } from "./requestReschedule.schema";
+import { ZUpsertBookingInternalNoteInputSchema } from "./upsertInternalNote.schema";
 import { bookingsProcedure } from "./util";
 
 type BookingsRouterHandlerCache = {
@@ -20,6 +24,8 @@ type BookingsRouterHandlerCache = {
   getBookingAttendees?: typeof import("./getBookingAttendees.handler").getBookingAttendeesHandler;
   find?: typeof import("./find.handler").getHandler;
   getInstantBookingLocation?: typeof import("./getInstantBookingLocation.handler").getHandler;
+  getInternalNotes?: typeof import("./getInternalNotes.handler").getBookingInternalNotesHandler;
+  upsertInternalNote?: typeof import("./upsertInternalNote.handler").upsertBookingInternalNoteHandler;
 };
 
 export const bookingsRouter = router({
@@ -97,5 +103,19 @@ export const bookingsRouter = router({
         ctx,
         input,
       });
+    }),
+    
+  getInternalNotes: authedProcedure
+    .input(ZGetBookingInternalNotesInputSchema)
+    .query(async (opts) => {
+      const { default: handler } = await import("./getInternalNotes.handler");
+      return handler(opts);
+    }),
+    
+  upsertInternalNote: authedProcedure
+    .input(ZUpsertBookingInternalNoteInputSchema)
+    .mutation(async (opts) => {
+      const { default: handler } = await import("./upsertInternalNote.handler");
+      return handler(opts);
     }),
 });

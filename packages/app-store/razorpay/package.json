@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "name": "@calcom/razorpay",
+  "version": "0.0.0",
+  "main": "./index.ts",
+  "description": "Razorpay Payment Gateway for Cal.com",
+  "dependencies": {
+    "@calcom/prisma": "*",
+    "@calcom/trpc": "*",
+    "razorpay": "^2.9.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@calcom/tsconfig": "*",
+    "@calcom/types": "*",
+    "eslint": "^8.34.0",
+    "typescript": "^4.9.4"
+  },
+  "peerDependencies": {
+    "@calcom/types": "*"
+  },
+  "license": "MIT"
+}

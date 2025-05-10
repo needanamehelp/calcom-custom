@@ -116,6 +116,7 @@ export interface BaseCardProps extends CVACardType {
   mediaLink?: string;
   thumbnailUrl?: string;
   structure?: string;
+  children?: React.ReactNode;
 }
 
 export function Card({

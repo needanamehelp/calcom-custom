@@ -252,6 +252,7 @@ model DestinationCalendar {
 enum UserPermissionRole {
   USER
   ADMIN
+  CLIENT
 }
 
 // It holds the password of a User, separate from the User model to avoid leaking the password hash
@@ -862,6 +863,7 @@ model Payment {
 
 enum PaymentOption {
   ON_BOOKING
+  AFTER_BOOKING
   HOLD
 }
 
@@ -1046,6 +1048,7 @@ model App_RoutingForms_Form {
   updatedBy                User?                                       @relation("updated-routing-form", fields: [updatedById], references: [id], onDelete: SetNull)
   updatedById              Int?
   // This is the user who created the form and also the user who has read-write access to the form
+  // If teamId is set, the members of the team would also have access to form readOnly or read-write depending on their permission level as team member.
   // If teamId is set, the members of the team would also have access to form readOnly or read-write depending on their permission level as team member.
   userId                   Int
   team                     Team?                                       @relation(fields: [teamId], references: [id], onDelete: Cascade)

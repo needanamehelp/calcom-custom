@@ -60,6 +60,7 @@ import { Icon } from "@calcom/ui/components/icon";
 import { showToast } from "@calcom/ui/components/toast";
 import { useCalcomTheme } from "@calcom/ui/styles";
 import CancelBooking from "@calcom/web/components/booking/CancelBooking";
+import { InternalNotesSection } from "@components/booking/InternalNotesSection";
 import EventReservationSchema from "@calcom/web/components/schemas/EventReservationSchema";
 import { timeZone } from "@calcom/web/lib/clock";
 
@@ -1073,10 +1074,25 @@ export default function Success(props: PageProps) {
                   customIconColor="text-attention dark:text-orange-200"
                 />
               )}
+              {/* Internal Notes Section with Debug Info */}
+              <div className="space-y-2">
+                <InternalNotesSection bookingId={bookingInfo.id} />
+                
+                {/* Debug information to explain visibility rules */}
+                <div className="p-3 rounded-md bg-yellow-50 border border-yellow-200 text-xs text-yellow-800">
+                  <p className="font-medium">Internal Notes Debug Info:</p>
+                  <ul className="mt-1 list-disc list-inside space-y-1">
+                    <li>Current user ID: {session?.user?.id}</li>
+                    <li>Booking owner ID: {bookingInfo.user?.id}</li>
+                    <li>Event type team ID: {eventType?.team?.id}</li>
+                    <li>Your internal notes are visible if you: (1) own this booking, or (2) are part of the team that owns this event type</li>
+                  </ul>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </main>
+        </main>
       <Toaster position="bottom-right" />
     </div>
   );

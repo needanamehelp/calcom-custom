@@ -36,6 +36,7 @@ import { metadata as giphy__metadata_ts } from "./giphy/_metadata";
 import { metadata as googlecalendar__metadata_ts } from "./googlecalendar/_metadata";
 import { metadata as googlevideo__metadata_ts } from "./googlevideo/_metadata";
 import granola_config_json from "./granola/config.json";
+import greeter_config_json from "./greeter/config.json";
 import greetmate_ai_config_json from "./greetmate-ai/config.json";
 import gtm_config_json from "./gtm/config.json";
 import hitpay_config_json from "./hitpay/config.json";
@@ -69,6 +70,7 @@ import plausible_config_json from "./plausible/config.json";
 import posthog_config_json from "./posthog/config.json";
 import qr_code_config_json from "./qr_code/config.json";
 import raycast_config_json from "./raycast/config.json";
+import razorpay_config_json from "./razorpay/config.json";
 import retell_ai_config_json from "./retell-ai/config.json";
 import riverside_config_json from "./riverside/config.json";
 import roam_config_json from "./roam/config.json";
@@ -143,6 +145,7 @@ export const appStoreMetadata = {
   googlecalendar: googlecalendar__metadata_ts,
   googlevideo: googlevideo__metadata_ts,
   granola: granola_config_json,
+  greeter: greeter_config_json,
   "greetmate-ai": greetmate_ai_config_json,
   gtm: gtm_config_json,
   hitpay: hitpay_config_json,
@@ -176,6 +179,7 @@ export const appStoreMetadata = {
   posthog: posthog_config_json,
   qr_code: qr_code_config_json,
   raycast: raycast_config_json,
+  razorpay: razorpay_config_json,
   "retell-ai": retell_ai_config_json,
   riverside: riverside_config_json,
   roam: roam_config_json,

@@ -183,6 +183,7 @@ async function createApp(
   keys?: Prisma.AppCreateInput["keys"],
   isTemplate?: boolean
 ) {
+  console.log(`📌 Upserting app: slug='${slug}', dirName='${dirName}'`);
   try {
     const foundApp = await prisma.app.findFirst({
       /**
@@ -400,6 +401,7 @@ export default async function main() {
     const validatedCategories = app.categories.filter(
       (category): category is AppCategories => category in AppCategories
     );
+    console.log(`🚀 Seeding app: '${app.slug}' (dirName: '${app.dirName}')`);
 
     await createApp(
       app.slug,
@@ -410,6 +412,7 @@ export default async function main() {
       app.isTemplate
     );
   }
+  console.log("🚀 Seeding app store completed");
 
   await seedAppData();
 }

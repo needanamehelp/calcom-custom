@@ -3,6 +3,7 @@
  */
 import { router } from "../trpc";
 import { viewerRouter } from "./viewer/_router";
+import razorpayRouter from "@calcom/app-store/razorpay/_trpc-router";
 
 /**
  * Create your application's root router
@@ -12,6 +13,7 @@ import { viewerRouter } from "./viewer/_router";
  */
 export const appRouter = router({
   viewer: viewerRouter,
+  razorpay: razorpayRouter,
 });
 
 export type AppRouter = typeof appRouter;

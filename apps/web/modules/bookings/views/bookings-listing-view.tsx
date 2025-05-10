@@ -83,6 +83,8 @@ const descriptionByStatus: Record<BookingListingStatus, string> = {
 
 type BookingsProps = {
   status: (typeof validStatuses)[number];
+  userIds?: number[];
+  attendeeEmails?: string[];
 };
 
 export default function Bookings(props: BookingsProps) {
@@ -104,14 +106,15 @@ type RowData =
       type: "today" | "next";
     };
 
-function BookingsContent({ status }: BookingsProps) {
+function BookingsContent({ status, userIds, attendeeEmails }: BookingsProps) {
   const { t } = useLocale();
   const user = useMeQuery().data;
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const isClientView = !!attendeeEmails?.length;
 
   const eventTypeIds = useFilterValue("eventTypeId", ZMultiSelectFilterValue)?.data as number[] | undefined;
   const teamIds = useFilterValue("teamId", ZMultiSelectFilterValue)?.data as number[] | undefined;
-  const userIds = useFilterValue("userId", ZMultiSelectFilterValue)?.data as number[] | undefined;
+  const userIdsFilter = userIds ?? (useFilterValue("userId", ZMultiSelectFilterValue)?.data as number[] | undefined);
   const dateRange = useFilterValue("dateRange", ZDateRangeFilterValue)?.data;
   const attendeeName = useFilterValue("attendeeName", ZTextFilterValue);
   const attendeeEmail = useFilterValue("attendeeEmail", ZTextFilterValue);
@@ -125,9 +128,9 @@ function BookingsContent({ status }: BookingsProps) {
       status,
       eventTypeIds,
       teamIds,
-      userIds,
+      userIds: userIdsFilter,
       attendeeName,
-      attendeeEmail,
+      attendeeEmail: attendeeEmails?.[0] || attendeeEmail,
       afterStartDate: dateRange?.startDate
         ? dayjs(dateRange?.startDate).startOf("day").toISOString()
         : undefined,
@@ -343,11 +346,23 @@ function BookingsContent({ status }: BookingsProps) {
     getFacetedUniqueValues,
   });
 
+  // Create dynamic tabs that preserve client filtering if we're in client view
+  const clientTabs = useMemo(() => {
+    if (!isClientView || !attendeeEmails?.[0]) return tabs;
+    
+    // Create a modified version of tabs that keeps the client email filter
+    return tabs.map((tab) => ({
+      ...tab,
+      // Change the href to point back to the client page with the right status
+      href: `/clients/${encodeURIComponent(attendeeEmails[0])}/${tab.name}`,
+    }));
+  }, [isClientView, attendeeEmails]);
+
   return (
     <div className="flex flex-col">
       <div className="flex flex-row flex-wrap justify-between">
         <HorizontalTabs
-          tabs={tabs.map((tab) => ({
+          tabs={(isClientView ? clientTabs : tabs).map((tab) => ({
             ...tab,
             name: t(tab.name),
           }))}

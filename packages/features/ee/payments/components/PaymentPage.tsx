@@ -51,6 +51,14 @@ const HitpayPaymentComponent = dynamic(
   }
 );
 
+const RazorpayPaymentForm = dynamic(
+  () =>
+    import("@calcom/app-store/razorpay/components/RazorpayPaymentForm").then(
+      (m) => m.RazorpayPaymentForm
+    ),
+  { ssr: false }
+);
+
 const PaymentPage: FC<PaymentPageProps> = (props) => {
   const { t, i18n } = useLocale();
   const [is24h, setIs24h] = useState(isBrowserLocale24h());
@@ -165,6 +173,17 @@ const PaymentPage: FC<PaymentPageProps> = (props) => {
                   )}
                   {props.payment.appId === "hitpay" && !props.payment.success && (
                     <HitpayPaymentComponent payment={props.payment} />
+                  )}
+                  {props.payment.appId === "razorpay" && !props.payment.success && (
+                    <RazorpayPaymentForm
+                      clientSecret={props.clientSecret}
+                      payment={props.payment}
+                      eventType={props.eventType}
+                      user={props.user}
+                      location={props.booking.location}
+                      booking={props.booking}
+                      uid={props.booking.uid}
+                    />
                   )}
                   {props.payment.refunded && (
                     <div className="text-default mt-4 text-center dark:text-gray-300">{t("refunded")}</div>

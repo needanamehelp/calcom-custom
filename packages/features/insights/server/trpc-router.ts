@@ -54,13 +54,18 @@ const buildBaseWhereCondition = async ({
   isEmptyResponse?: boolean;
 }> => {
   let whereCondition: Prisma.BookingTimeStatusWhereInput = {};
+  
   // EventType Filter
   if (eventTypeId) whereCondition.OR = [{ eventTypeId }, { eventParentId: eventTypeId }];
+  
   // User/Member filter
   if (memberUserId) whereCondition.userId = memberUserId;
+  
+  // Always enable individual user insights
   if (userId) {
-    whereCondition.teamId = null;
+    console.log(`[Insights] Using individual user insights for userId: ${userId}`);
     whereCondition.userId = userId;
+    return { whereCondition };
   }
   // organization-wide queries condition
   if (isAll && ctx.userIsOwnerAdminOfParentTeam && ctx.userOrganizationId) {
@@ -175,9 +180,22 @@ const userBelongsToTeamProcedure = authedProcedure.use(async ({ ctx, next, getRa
     throw new TRPCError({ code: "BAD_REQUEST" });
   }
 
+  // If no teamId is provided and userId matches current user, allow access to individual insights
+  // This enables insights for all users, not just team members
+  const userId = (parse.data as any).userId;
+  if (!parse.data.teamId && (!userId || userId === ctx.user.id)) {
+    return next({
+      ctx: {
+        user: {
+          ...ctx.user,
+          isOwnerAdminOfParentTeam: false,
+        },
+      },
+    });
+  }
+
   // If teamId is provided, check if user belongs to team
   // If teamId is not provided, check if user belongs to any team
-
   const membershipWhereConditional: Prisma.MembershipWhereInput = {
     userId: ctx.user.id,
     accepted: true,
@@ -290,6 +308,7 @@ export interface IResultTeamList {
   logoUrl: string | null;
   userId?: number;
   isOrg?: boolean;
+  isPersonal?: boolean;
 }
 
 const BATCH_SIZE = 1000; // Adjust based on your needs
@@ -1000,6 +1019,7 @@ export const insightsRouter = router({
     }),
   teamListForUser: authedProcedure.query(async ({ ctx }) => {
     const user = ctx.user;
+    console.log("[Insights] Getting team list for user:", user.id);
 
     // Fetch user data
     const userData = await ctx.insightsDb.user.findUnique({
@@ -1012,6 +1032,19 @@ export const insightsRouter = router({
     if (!userData) {
       return [];
     }
+    
+    // Always include the individual user option
+    const userOption: IResultTeamList = {
+      id: -1, // Special ID for individual user
+      name: `My Insights (${userData.name || userData.email})`,
+      slug: "my-insights",
+      logoUrl: null,
+      userId: user.id,
+      isPersonal: true, // Mark as personal insights
+    };
+    
+    // Start with the individual user option
+    const result: IResultTeamList[] = [userOption];
 
     // Validate if user belongs to org as admin/owner
     if (user.organizationId && user.organization.isOrgAdmin) {
@@ -1029,16 +1062,19 @@ export const insightsRouter = router({
       const teamsFromOrg = teamsAndOrg.filter((team) => team.id !== user.organizationId);
       const orgTeam = teamsAndOrg.find((team) => team.id === user.organizationId);
       if (!orgTeam) {
-        return [];
+        return result; // Return at least the personal insights option
       }
 
-      const result: IResultTeamList[] = [
-        {
-          ...orgTeam,
-          isOrg: true,
-        },
-        ...teamsFromOrg,
-      ];
+      // Add organization to result array
+      result.push({
+        ...orgTeam,
+        isOrg: true,
+      });
+      
+      // Add all other teams
+      teamsFromOrg.forEach((team) => {
+        result.push(team);
+      });
 
       return result;
     }
@@ -1077,11 +1113,11 @@ export const insightsRouter = router({
       return [];
     }
 
-    const result: IResultTeamList[] = belongsToTeams.map((membership) => {
+    const teamResults: IResultTeamList[] = belongsToTeams.map((membership) => {
       return { ...membership.team };
     });
 
-    return result;
+    return teamResults;
   }),
   userList: authedProcedure
     .input(
