@@ -27,6 +27,11 @@ export default async function Page({ params }: Props) {
   const session = await getServerSession(authOptions);
   if (!session) return redirect("/login");
   
+  // Redirect to the "upcoming" tab if no status is provided in the URL
+  if (!params.status) {
+    return redirect(`/clients/${params.clientId}/upcoming`);
+  }
+  
   // DIAGNOSTIC: Log raw parameter to see what's coming in from URL
   console.log("[DEBUG] Raw clientId parameter:", params.clientId);
   
@@ -301,14 +306,38 @@ export default async function Page({ params }: Props) {
     bookingsProps.userIds = [client.id];
   }
 
+  // Create tabs with proper links to status pages
+  const clientTabs = validStatuses.map((tabStatus) => ({
+    name: tabStatus,
+    href: `/clients/${params.clientId}/${tabStatus}`,
+    'data-testid': tabStatus,
+  }));
+
   return (
     <ShellMainAppDir heading={heading} subtitle={subtitle}>
-      <ClientBookings 
-        status={status}
-        userIds={isGuest ? undefined : client.id ? [client.id] : undefined}
-        attendeeEmails={isGuest ? [clientIdOrEmail] : undefined}
-        isGuest={isGuest}
-      />
+      <div className="mt-8">
+        <div className="mb-8">
+          {/* Add horizontal tab navigation */}
+          <nav className="no-scrollbar mb-4 flex items-center justify-start space-x-2 overflow-x-auto">
+            {clientTabs.map((tab) => (
+              <a
+                key={tab.name}
+                href={tab.href}
+                className={`text-default min-w-fit whitespace-nowrap rounded-md px-4 py-2.5 text-sm font-medium ${status === tab.name ? 'bg-emphasis text-emphasis' : 'hover:bg-subtle'}`}
+                data-testid={tab['data-testid']}
+              >
+                {tab.name.charAt(0).toUpperCase() + tab.name.slice(1)}
+              </a>
+            ))}
+          </nav>
+        </div>
+        <ClientBookings 
+          status={status}
+          userIds={isGuest ? undefined : client.id ? [client.id] : undefined}
+          attendeeEmails={isGuest ? [clientIdOrEmail] : undefined}
+          isGuest={isGuest}
+        />
+      </div>
     </ShellMainAppDir>
   );
 }

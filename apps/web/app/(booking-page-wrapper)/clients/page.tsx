@@ -115,6 +115,13 @@ function categorizeBookings(bookings: ClientInfo['bookings']) {
   };
 }
 
+export async function generateMetadata() {
+  return {
+    title: `Clients | Loopin.pro`,
+    description: `View and manage your clients`,
+  };
+}
+
 export default async function ClientsPage() {
   // Get auth options with a simple inline getDubId function
   const authOptions = getOptions({

@@ -115,10 +115,20 @@ export default async function Page({ params }: Props) {
     );
   }
 
-  // Validate the status parameter
-  const status = validStatuses.includes(params.status as typeof validStatuses[number]) 
-    ? params.status as typeof validStatuses[number]
-    : "upcoming" as typeof validStatuses[number];
+  // Force-normalize the status to ensure it's always correctly set
+  const normalizedStatus = params.status ? params.status.toLowerCase() : '';
+  
+  // Validate the status parameter in a way that ensures it's properly set
+  // Ensure status is always a valid value from our validStatuses array
+  const validStatus = validStatuses.includes(normalizedStatus as any) ? normalizedStatus as (typeof validStatuses)[number] : "upcoming";
+  const status = validStatus;
+  
+  console.log("[SERVER] Client page [status]/page.tsx: Using status", status, "from URL param", params.status);
+  
+  // Make sure the status is correctly set by logging it prominently
+  console.log("================================================================");
+  console.log(`⭐ RENDERING CLIENT PAGE WITH STATUS: ${status} (from URL: ${params.status}) ⭐`);
+  console.log("================================================================");
     
   // Create the heading and subtitle
   const heading = `Bookings for ${client.name || client.email}`;
@@ -137,10 +147,8 @@ export default async function Page({ params }: Props) {
 }
 
 export async function generateMetadata({ params }: Props) {
-  const clientIdOrEmail = decodeURIComponent(params.clientId);
-  
   return {
-    title: `Client: ${clientIdOrEmail} | Loopin.pro`,
-    description: `View bookings for client ${clientIdOrEmail}`,
+    title: `Clients | Loopin.pro`,
+    description: `View client bookings`,
   };
 }

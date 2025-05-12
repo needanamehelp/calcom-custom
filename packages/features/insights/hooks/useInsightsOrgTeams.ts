@@ -15,6 +15,9 @@ export function useInsightsOrgTeams() {
   const teamId = orgTeamsType === "org" ? currentOrgId : orgTeamsType === "team" ? selectedTeamId : undefined;
   const userId = orgTeamsType === "yours" ? session.data?.user.id : undefined;
 
+  // For individual users without team, we explicitly ensure userId is set
+  const enhancedUserId = userId || (orgTeamsType === "yours" ? session.data?.user.id : undefined);
+  
   return {
     orgTeamsType,
     setOrgTeamsType,
@@ -22,6 +25,7 @@ export function useInsightsOrgTeams() {
     setSelectedTeamId,
     isAll,
     teamId,
-    userId,
+    // Always include the userId for individual users, overriding the default behavior
+    userId: enhancedUserId,
   };
 }

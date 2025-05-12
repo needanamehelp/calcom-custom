@@ -107,15 +107,21 @@ export const bookingsRouter = router({
     
   getInternalNotes: authedProcedure
     .input(ZGetBookingInternalNotesInputSchema)
-    .query(async (opts) => {
-      const { default: handler } = await import("./getInternalNotes.handler");
-      return handler(opts);
+    .query(async ({ ctx, input }) => {
+      const { getBookingInternalNotesHandler } = await import("./getInternalNotes.handler");
+      return getBookingInternalNotesHandler({
+        ctx: { user: ctx.user },
+        input,
+      });
     }),
     
   upsertInternalNote: authedProcedure
     .input(ZUpsertBookingInternalNoteInputSchema)
-    .mutation(async (opts) => {
-      const { default: handler } = await import("./upsertInternalNote.handler");
-      return handler(opts);
+    .mutation(async ({ ctx, input }) => {
+      const { upsertBookingInternalNoteHandler } = await import("./upsertInternalNote.handler");
+      return upsertBookingInternalNoteHandler({
+        ctx: { user: ctx.user },
+        input
+      });
     }),
 });

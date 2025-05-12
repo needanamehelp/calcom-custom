@@ -209,17 +209,18 @@ export function InternalNotesSection({ bookingId }: InternalNotesSectionProps) {
     }
   }, [bookingId, notes, notesError, t]);
   
-  // Create some test data if notes are empty
-  useEffect(() => {
-    // Only add a test note if notes is an empty array (not undefined or null)
-    if (notes && notes.length === 0 && !isAddingNote) {
-      console.log("[InternalNotes] Creating test note automatically");
-      upsertNoteMutation.mutate({
-        bookingId,
-        text: "This is an automatically created test note to demonstrate the functionality.",
-      });
-    }
-  }, [notes, bookingId, isAddingNote, upsertNoteMutation]);
+  // Removed auto-creation of test notes that was causing infinite API calls
+  // If you want to add test data, use a local state flag to ensure it only runs once
+  // const [hasCreatedTestNote, setHasCreatedTestNote] = useState(false);
+  // useEffect(() => {
+  //   if (notes && notes.length === 0 && !isAddingNote && !hasCreatedTestNote) {
+  //     setHasCreatedTestNote(true); // Prevent multiple creations
+  //     upsertNoteMutation.mutate({
+  //       bookingId,
+  //       text: "This is a test note.",
+  //     });
+  //   }
+  // }, [notes, bookingId, isAddingNote, upsertNoteMutation, hasCreatedTestNote]);
 
 
   const handleAddNote = useCallback(() => {

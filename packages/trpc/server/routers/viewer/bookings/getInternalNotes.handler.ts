@@ -1,7 +1,6 @@
-import type { TrpcSessionUser } from "../../../types";
-
 import prisma from "@calcom/prisma";
 
+import type { TrpcSessionUser } from "../../../types";
 import type { TGetBookingInternalNotesInputSchema } from "./getInternalNotes.schema";
 
 type GetBookingInternalNotesOptions = {
@@ -14,6 +13,10 @@ type GetBookingInternalNotesOptions = {
 export const getBookingInternalNotesHandler = async ({ ctx, input }: GetBookingInternalNotesOptions) => {
   const { bookingId } = input;
   const { user } = ctx;
+  
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
 
   // Verify the booking exists - permissive check to let any authenticated user view notes
   const booking = await prisma.booking.findUnique({

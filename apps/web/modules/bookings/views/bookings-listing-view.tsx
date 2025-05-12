@@ -85,6 +85,7 @@ type BookingsProps = {
   status: (typeof validStatuses)[number];
   userIds?: number[];
   attendeeEmails?: string[];
+  hideTabs?: boolean;
 };
 
 export default function Bookings(props: BookingsProps) {
@@ -106,7 +107,7 @@ type RowData =
       type: "today" | "next";
     };
 
-function BookingsContent({ status, userIds, attendeeEmails }: BookingsProps) {
+function BookingsContent({ status, userIds, attendeeEmails, hideTabs = false }: BookingsProps) {
   const { t } = useLocale();
   const user = useMeQuery().data;
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -360,14 +361,16 @@ function BookingsContent({ status, userIds, attendeeEmails }: BookingsProps) {
 
   return (
     <div className="flex flex-col">
-      <div className="flex flex-row flex-wrap justify-between">
-        <HorizontalTabs
-          tabs={(isClientView ? clientTabs : tabs).map((tab) => ({
-            ...tab,
-            name: t(tab.name),
-          }))}
-        />
-      </div>
+      {!hideTabs && (
+        <div className="flex flex-row flex-wrap justify-between">
+          <HorizontalTabs
+            tabs={(isClientView ? clientTabs : tabs).map((tab) => ({
+              ...tab,
+              name: t(tab.name),
+            }))}
+          />
+        </div>
+      )}
       <main className="w-full">
         <div className="flex w-full flex-col">
           {query.status === "error" && (

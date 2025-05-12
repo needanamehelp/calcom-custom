@@ -10,6 +10,7 @@ import dayjs from "@calcom/dayjs";
 import "@calcom/dayjs/locales";
 import { Dialog } from "@calcom/features/components/controlled-dialog";
 import ViewRecordingsDialog from "@calcom/features/ee/video/ViewRecordingsDialog";
+import SessionNotesDialog from "@calcom/features/ee/video/SessionNotesDialog";
 import { formatTime } from "@calcom/lib/dayjs";
 import { getPaymentAppData } from "@calcom/lib/getPaymentAppData";
 import { useCopy } from "@calcom/lib/hooks/useCopy";
@@ -116,6 +117,7 @@ function BookingListItem(booking: BookingItemProps) {
   const [rejectionDialogIsOpen, setRejectionDialogIsOpen] = useState(false);
   const [chargeCardDialogIsOpen, setChargeCardDialogIsOpen] = useState(false);
   const [viewRecordingsDialogIsOpen, setViewRecordingsDialogIsOpen] = useState<boolean>(false);
+  const [sessionNotesDialogIsOpen, setSessionNotesDialogIsOpen] = useState<boolean>(false);
   const [isNoShowDialogOpen, setIsNoShowDialogOpen] = useState<boolean>(false);
   const cardCharged = booking?.payment[0]?.success;
 
@@ -457,23 +459,37 @@ function BookingListItem(booking: BookingItemProps) {
   const title = booking.title;
 
   const showViewRecordingsButton = !!(booking.isRecorded && isBookingInPast && isConfirmed);
-  const showCheckRecordingButton =
-    isBookingInPast &&
-    isConfirmed &&
-    !booking.isRecorded &&
-    (!booking.location || booking.location === "integrations:daily" || booking?.location?.trim() === "");
+  // Show session notes button for past bookings that are confirmed 
+  const showSessionNotesButton = isBookingInPast && isConfirmed;
 
-  const showRecordingActions: ActionType[] = [
-    {
+  // Actions for each booking
+  const recordingAndNotesActions: ActionType[] = [];
+  
+  // Add recordings button if applicable
+  if (showViewRecordingsButton) {
+    recordingAndNotesActions.push({
       id: "view_recordings",
-      label: showCheckRecordingButton ? t("check_for_recordings") : t("view_recordings"),
+      label: t("view_recordings"),
       onClick: () => {
         setViewRecordingsDialogIsOpen(true);
       },
-      color: showCheckRecordingButton ? "secondary" : "primary",
+      color: "primary",
       disabled: mutation.isPending,
-    },
-  ];
+    });
+  }
+
+  // Add session notes button
+  if (showSessionNotesButton) {
+    recordingAndNotesActions.push({
+      id: "session_notes",
+      label: "Session Notes", // Using fixed text instead of translation key
+      onClick: () => {
+        setSessionNotesDialogIsOpen(true);
+      },
+      color: "secondary",
+      disabled: mutation.isPending,
+    });
+  }
 
   const showPendingPayment = paymentAppData.enabled && booking.payment.length && !booking.paid;
 
@@ -514,11 +530,19 @@ function BookingListItem(booking: BookingItemProps) {
           paymentCurrency={booking.payment[0].currency}
         />
       )}
-      {(showViewRecordingsButton || showCheckRecordingButton) && (
+      {showViewRecordingsButton && (
         <ViewRecordingsDialog
           booking={booking}
           isOpenDialog={viewRecordingsDialogIsOpen}
           setIsOpenDialog={setViewRecordingsDialogIsOpen}
+          timeFormat={userTimeFormat ?? null}
+        />
+      )}
+      {showSessionNotesButton && (
+        <SessionNotesDialog
+          booking={booking}
+          isOpenDialog={sessionNotesDialogIsOpen}
+          setIsOpenDialog={setSessionNotesDialogIsOpen}
           timeFormat={userTimeFormat ?? null}
         />
       )}
@@ -712,8 +736,8 @@ function BookingListItem(booking: BookingItemProps) {
             ) : null}
             {isBookingInPast && isPending && !isConfirmed ? <TableActions actions={bookedActions} /> : null}
             {isBookingInPast && isConfirmed ? <TableActions actions={bookedActions} /> : null}
-            {(showViewRecordingsButton || showCheckRecordingButton) && (
-              <TableActions actions={showRecordingActions} />
+            {recordingAndNotesActions.length > 0 && (
+              <TableActions actions={recordingAndNotesActions} />
             )}
             {isCancelled && booking.rescheduled && (
               <div className="hidden h-full items-center md:flex">

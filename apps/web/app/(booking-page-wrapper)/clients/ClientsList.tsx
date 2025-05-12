@@ -66,9 +66,15 @@ export default function ClientsList({ clients }: ClientsListProps) {
                 <Badge variant={isGuest ? "gray" : "green"} className="text-xs">
                   {isGuest ? 'Guest' : 'User'}
                 </Badge>
-                <span className="text-default text-sm">
-                  {bookings.length} booking{bookings.length !== 1 ? 's' : ''}
-                </span>
+                <div className="flex flex-col text-default text-xs">
+                  {/* Calculate number of upcoming (ACCEPTED) and unconfirmed (PENDING) bookings */}
+                  <span>
+                    {bookings.filter(b => new Date(b.startTime) > new Date() && b.status === "ACCEPTED").length} upcoming
+                  </span>
+                  <span>
+                    {bookings.filter(b => b.status === "PENDING").length} unconfirmed
+                  </span>
+                </div>
                 <Icon 
                   name="arrow-right" 
                   className="text-subtle h-4 w-4 group-hover:text-emphasis" 
