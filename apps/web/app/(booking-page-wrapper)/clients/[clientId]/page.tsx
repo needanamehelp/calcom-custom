@@ -8,7 +8,7 @@ import { getOptions } from "@calcom/features/auth/lib/next-auth-options";
 // Import client component
 import ClientBookings from "./ClientBookings";
 
-const validStatuses = ["upcoming", "unconfirmed", "recurring", "past", "cancelled"] as const;
+const validStatuses = ["upcoming", "past", "progress", "payments"] as const;
 
 const querySchema = z.object({
   status: z.enum(validStatuses),

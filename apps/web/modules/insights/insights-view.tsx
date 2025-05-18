@@ -23,7 +23,7 @@ import {
 import "@calcom/features/insights/components/tremor.css";
 import { InsightsOrgTeamsProvider } from "@calcom/features/insights/context/InsightsOrgTeamsProvider";
 import { Download } from "@calcom/features/insights/filters/Download";
-import { OrgTeamsFilter } from "@calcom/features/insights/filters/OrgTeamsFilter";
+// OrgTeamsFilter removed to simplify UI
 import { useInsightsBookings } from "@calcom/features/insights/hooks/useInsightsBookings";
 import { useInsightsOrgTeams } from "@calcom/features/insights/hooks/useInsightsOrgTeams";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
@@ -54,7 +54,7 @@ function InsightsPageContent() {
       <div
         className="flex flex-wrap items-center gap-2"
         data-testid={`insights-filters-${isAll}-${teamId}-${userId}`}>
-        <OrgTeamsFilter />
+        {/* OrgTeamsFilter removed to simplify UI */}
         <DataTableFilters.AddFilterButton table={table} hideWhenFilterApplied />
         <DataTableFilters.ActiveFilters table={table} />
         <DataTableFilters.AddFilterButton table={table} variant="sm" showWhenFilterApplied />

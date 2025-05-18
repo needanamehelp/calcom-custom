@@ -6,13 +6,14 @@
   "url": "https://razorpay.com",
   "variant": "payment",
   "categories": ["payment"],
-  "publisher": "Cal.com",
-  "email": "help@cal.com",
+  "publisher": "Loopin.pro",
+  "email": "help@loopin.pro",
   "description": "Razorpay is the only payments solution in India that allows businesses to accept, process and disburse payments with its product suite.",
   "isTemplate": false,
   "__createdUsingCli": true,
   "imageSrc": "icon.svg",
   "__template": "event-type-app-card",
   "dirName": "razorpay",
-  "extendsFeature": "EventType"
+  "extendsFeature": "EventType",
+  "isOAuth": true
 } 

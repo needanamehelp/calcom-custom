@@ -1,15 +1,11 @@
-import { z } from "zod";
 import crypto from "crypto";
+import { z } from "zod";
 
 import { router } from "@calcom/trpc/server/trpc";
-import  authedProcedure  from "@calcom/trpc/server/procedures/authedProcedure";
+import authedProcedure from "@calcom/trpc/server/procedures/authedProcedure";
 import prisma from "@calcom/prisma";
 
-// Define the schema directly if the import can't be found
-const razorpayCredentialKeysSchema = z.object({
-  key_id: z.string().optional(),
-  key_secret: z.string().optional()
-});
+import { razorpayCredentialKeysSchema, razorpayAppKeysSchema } from "./zod";
 
 // Helper function to get Razorpay keys securely
 async function getRazorpayKeys(userId: number) {
@@ -34,7 +30,7 @@ async function getRazorpayKeys(userId: number) {
 }
 
 export default router({
-  appKeys: authedProcedure.query(async ({ ctx }: { ctx: { user: { id: string | number } } }) => {
+  appKeys: authedProcedure.query(async ({ ctx }) => {
     const userId = typeof ctx.user.id === 'string' ? parseInt(ctx.user.id) : ctx.user.id;
     if (isNaN(userId)) {
         throw new Error("Invalid user ID format.");
@@ -71,6 +67,54 @@ export default router({
     };
   }),
 
+  saveKeys: authedProcedure
+    .input(razorpayAppKeysSchema)
+    .mutation(async ({ ctx, input }) => {
+      const userId = typeof ctx.user.id === 'string' ? parseInt(ctx.user.id) : ctx.user.id;
+      if (isNaN(userId)) {
+        throw new Error("Invalid user ID format.");
+      }
+
+      // Update or create credentials
+      try {
+        // Find any existing credentials for this user and type
+        const existingCredential = await prisma.credential.findFirst({
+          where: {
+            userId: userId,
+            type: "razorpay_payment"
+          },
+          select: { id: true }
+        });
+        
+        const credential = await prisma.credential.upsert({
+          where: {
+            id: existingCredential?.id ?? 0, // Use 0 as a fallback ID (won't match) if no credential exists
+          },
+          update: {
+            key: {
+              key_id: input.key_id,
+              key_secret: input.key_secret,
+              webhook_secret: input.webhook_secret
+            }
+          },
+          create: {
+            userId: userId,
+            type: "razorpay_payment",
+            key: {
+              key_id: input.key_id,
+              key_secret: input.key_secret,
+              webhook_secret: input.webhook_secret
+            }
+          }
+        });
+
+        return { success: true, credentialId: credential.id };
+      } catch (error) {
+        console.error("Error saving Razorpay credentials:", error);
+        throw new Error("Failed to save Razorpay credentials");
+      }
+    }),
+
   createRazorpayOrder: authedProcedure
     .input(z.object({
       amount: z.number(), // Amount in smallest currency unit (e.g., paise for INR)
@@ -103,7 +147,7 @@ export default router({
         return order; // Contains order_id, amount, currency, etc.
       } catch (error: any) {
         console.error("Razorpay order creation error:", error);
-        throw new Error(error.message || "Failed to create Razorpay order");
+        throw new Error("Razorpay order creation failed: " + (error.message || error.toString()));
       }
     }),
 

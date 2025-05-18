@@ -67,12 +67,13 @@ export default function RazorpaySetup(props: IRazorpaySetupProps) {
     return () => sub.unsubscribe();
   }, [watch, key_id, key_secret, webhook_secret]);
 
-  const saveMutation = trpc.viewer.apps.updateAppCredentials.useMutation({
+  // Use viewer.apps.saveKeys instead of non-existent viewer.razorpay.saveKeys
+  const saveMutation = trpc.viewer.apps.saveKeys.useMutation({
     onSuccess: () => {
-      showToast(t("keys_have_been_saved"), "success");
+      showToast(t("razorpay_keys_saved", "Razorpay keys have been saved"), "success");
     },
-    onError: (err) => {
-      showToast(err.message, "error");
+    onError: (error) => {
+      showToast(error.message, "error");
     },
   });
   const deleteMutation = trpc.viewer.credentials.delete.useMutation({
@@ -85,7 +86,14 @@ export default function RazorpaySetup(props: IRazorpaySetupProps) {
   });
 
   const onSubmit = handleSubmit((data) => {
-    saveMutation.mutate({ credentialId, key: credentialSchema.parse(data) });
+    // Format data for saveKeys mutation with required fields
+    saveMutation.mutate({
+      type: "razorpay_payment",
+      slug: "razorpay",
+      dirName: "razorpay",
+      keys: credentialSchema.parse(data),
+      ...(credentialId ? { credentialId } : {}),
+    });
   });
 
   const onRemove = () => deleteMutation.mutate({ id: credentialId });

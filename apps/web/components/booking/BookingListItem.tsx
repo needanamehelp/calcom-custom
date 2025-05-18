@@ -223,8 +223,7 @@ function BookingListItem(booking: BookingItemProps) {
       disabled: mutation.isPending,
     },
     // For bookings with payment, only confirm if the booking is paid for
-    ...((isPending && !paymentAppData.enabled) ||
-    (paymentAppData.enabled && !!paymentAppData.price && booking.paid)
+    ...(isPending
       ? [
           {
             id: "confirm",
@@ -237,7 +236,7 @@ function BookingListItem(booking: BookingItemProps) {
             disabled: mutation.isPending,
           },
         ]
-      : []),
+      : []), // Always show confirm button for unconfirmed bookings regardless of payment status
   ];
 
   const editBookingActions: ActionType[] = [
@@ -459,8 +458,8 @@ function BookingListItem(booking: BookingItemProps) {
   const title = booking.title;
 
   const showViewRecordingsButton = !!(booking.isRecorded && isBookingInPast && isConfirmed);
-  // Show session notes button for past bookings that are confirmed 
-  const showSessionNotesButton = isBookingInPast && isConfirmed;
+  // Show session notes button for past bookings that are confirmed, but only for the host (not guests)
+  const showSessionNotesButton = isBookingInPast && isConfirmed && booking.user?.email === userEmail;
 
   // Actions for each booking
   const recordingAndNotesActions: ActionType[] = [];

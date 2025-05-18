@@ -1,0 +1,13 @@
+{
+  "name": "@calcom/qrcodepay",
+  "version": "0.0.0",
+  "private": true,
+  "description": "QR Code Payment app for Cal.com - Accept payments through custom QR codes",
+  "main": "./index.ts",
+  "dependencies": {
+    "@calcom/lib": "*"
+  },
+  "devDependencies": {
+    "@calcom/types": "*"
+  }
+}

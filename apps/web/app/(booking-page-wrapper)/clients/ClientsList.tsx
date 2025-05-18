@@ -30,8 +30,9 @@ export default function ClientsList({ clients }: ClientsListProps) {
         // Extract client info
         const { name, email, isGuest, bookings } = client;
         
-        // All clients now use the same path pattern with either ID or email
-        const clientPath = `/clients/${isGuest ? email : client.id}`;
+        // FIXED: Always use email for client paths, regardless of whether they're a guest or registered user
+        // This ensures permissions work consistently for all client types
+        const clientPath = `/clients/${encodeURIComponent(email)}`;
         
         return (
           <li key={clientId} className="group hover:bg-muted">

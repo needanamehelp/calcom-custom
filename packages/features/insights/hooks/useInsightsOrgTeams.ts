@@ -9,15 +9,20 @@ export function useInsightsOrgTeams() {
     throw new Error("useInsightsOrgTeams must be used within a InsightsOrgTeamsProvider");
   }
   const session = useSession();
+  const currentUserId = session.data?.user.id;
   const currentOrgId = session.data?.user.org?.id;
   const { orgTeamsType, selectedTeamId, setOrgTeamsType, setSelectedTeamId } = context;
-  const isAll = orgTeamsType === "org";
-  const teamId = orgTeamsType === "org" ? currentOrgId : orgTeamsType === "team" ? selectedTeamId : undefined;
-  const userId = orgTeamsType === "yours" ? session.data?.user.id : undefined;
 
-  // For individual users without team, we explicitly ensure userId is set
-  const enhancedUserId = userId || (orgTeamsType === "yours" ? session.data?.user.id : undefined);
+  // FIXED: Set isAll only when it's an org view AND the user is in an org
+  const isAll = orgTeamsType === "org" && !!currentOrgId;
   
+  // FIXED: Set teamId only for team views and org views
+  const teamId = orgTeamsType === "org" ? currentOrgId : orgTeamsType === "team" ? selectedTeamId : undefined;
+  
+  // FIXED: Always include userId for individual users AND in "yours" view
+  // This ensures individual users (without teams) always see their own data
+  const userId = !teamId || orgTeamsType === "yours" ? currentUserId : undefined;
+
   return {
     orgTeamsType,
     setOrgTeamsType,
@@ -25,7 +30,6 @@ export function useInsightsOrgTeams() {
     setSelectedTeamId,
     isAll,
     teamId,
-    // Always include the userId for individual users, overriding the default behavior
-    userId: enhancedUserId,
+    userId,
   };
 }

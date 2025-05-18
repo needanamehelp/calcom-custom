@@ -23,6 +23,10 @@ export const razorpayAppKeysSchema = z.object({
   webhook_secret: z.string().optional(),
 });
 
+// Schema used to validate credential keys in the database
+// Has the same structure as razorpayAppKeysSchema
+export const razorpayCredentialKeysSchema = razorpayAppKeysSchema;
+
 export const PaypalPaymentOptions = [
   {
     label: "on_booking_option",

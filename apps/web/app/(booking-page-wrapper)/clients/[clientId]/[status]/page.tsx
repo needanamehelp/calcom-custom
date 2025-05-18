@@ -9,10 +9,13 @@ import { ShellMainAppDir } from "app/(use-page-wrapper)/(main-nav)/ShellMainAppD
 // Import client component
 import ClientBookings from "../ClientBookings";
 
-const validStatuses = ["upcoming", "unconfirmed", "recurring", "past", "cancelled"] as const;
+// These are the URL statuses that can appear in the URL path
+const urlValidStatuses = ["upcoming", "unconfirmed", "recurring", "past", "cancelled"] as const;
+// These are the statuses that ClientBookings component accepts
+const componentValidStatuses = ["upcoming", "past", "progress", "payments"] as const;
 
 const querySchema = z.object({
-  status: z.enum(validStatuses),
+  status: z.enum(urlValidStatuses),
 });
 
 interface Props {
@@ -118,10 +121,25 @@ export default async function Page({ params }: Props) {
   // Force-normalize the status to ensure it's always correctly set
   const normalizedStatus = params.status ? params.status.toLowerCase() : '';
   
-  // Validate the status parameter in a way that ensures it's properly set
-  // Ensure status is always a valid value from our validStatuses array
-  const validStatus = validStatuses.includes(normalizedStatus as any) ? normalizedStatus as (typeof validStatuses)[number] : "upcoming";
-  const status = validStatus;
+  // Map the URL status to a valid component status
+  let mappedStatus: typeof componentValidStatuses[number] = "upcoming";
+  
+  // Map the URL statuses to component statuses
+  if (urlValidStatuses.includes(normalizedStatus as any)) {
+    // Direct mappings for statuses that exist in both
+    if (normalizedStatus === "upcoming" || normalizedStatus === "past") {
+      mappedStatus = normalizedStatus;
+    }
+    // Map other statuses to their appropriate component status
+    else if (normalizedStatus === "recurring" || normalizedStatus === "unconfirmed") {
+      mappedStatus = "upcoming";
+    } 
+    else if (normalizedStatus === "cancelled") {
+      mappedStatus = "past";
+    }
+  }
+  
+  const status = mappedStatus;
   
   console.log("[SERVER] Client page [status]/page.tsx: Using status", status, "from URL param", params.status);
   

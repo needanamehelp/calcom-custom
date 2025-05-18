@@ -3,12 +3,15 @@
 import Link from 'next/link';
 import { useParams, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import BookingsList from "~/bookings/views/bookings-listing-view";
+import ClientProgressView from "./ClientProgressView";
+import ClientPaymentsTab from "./ClientPaymentsTab";
+
 type ClientParams = {
   clientId: string;
 };
-import BookingsList from "~/bookings/views/bookings-listing-view";
 
-const validStatuses = ["upcoming", "unconfirmed", "recurring", "past", "cancelled"] as const;
+const validStatuses = ["upcoming", "past", "progress", "payments"] as const;
 type StatusType = typeof validStatuses[number];
 
 interface ClientBookingsProps {
@@ -17,6 +20,8 @@ interface ClientBookingsProps {
   attendeeEmails?: string[];
   isGuest: boolean;
 }
+
+// Component for handling client bookings
 
 export default function ClientBookings({ status, userIds, attendeeEmails, isGuest }: ClientBookingsProps) {
   // Get the client ID and current pathname
@@ -44,6 +49,9 @@ export default function ClientBookings({ status, userIds, attendeeEmails, isGues
     isActive: currentStatus === tabStatus,
   }));
 
+  // Determine if we should show the progress view
+  const showProgressView = currentStatus === "progress";
+
   return (
     <>
       {isGuest && (
@@ -68,14 +76,27 @@ export default function ClientBookings({ status, userIds, attendeeEmails, isGues
         ))}
       </nav>
       
-      {/* BookingsList with static key to prevent unmounting */}
-      <BookingsList 
-        key={`client-bookings-${clientId}`}
-        status={currentStatus} 
-        userIds={userIds} 
-        attendeeEmails={attendeeEmails}
-        hideTabs={true}
-      />
+      {showProgressView ? (
+        <ClientProgressView 
+          clientId={clientId}
+          isGuest={isGuest}
+          userIds={userIds} 
+          attendeeEmails={attendeeEmails}
+        />
+      ) : currentStatus === "payments" ? (
+        <ClientPaymentsTab
+          clientId={clientId}
+          isGuest={isGuest}
+        />
+      ) : (
+        <BookingsList 
+          key={`client-bookings-${clientId}`}
+          status={currentStatus} 
+          userIds={userIds} 
+          attendeeEmails={attendeeEmails}
+          hideTabs={true}
+        />
+      )}
     </>
   );
 }

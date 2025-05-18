@@ -18,7 +18,7 @@ export const getBookingInternalNotesHandler = async ({ ctx, input }: GetBookingI
     throw new Error("Unauthorized");
   }
 
-  // Verify the booking exists - permissive check to let any authenticated user view notes
+  // Strict authorization - only the booking owner can view internal notes
   const booking = await prisma.booking.findUnique({
     where: {
       id: bookingId,
@@ -33,7 +33,14 @@ export const getBookingInternalNotesHandler = async ({ ctx, input }: GetBookingI
     throw new Error("Booking not found");
   }
   
-  console.log(`[InternalNotes] Authorized user ${user.id} to view notes for booking ${bookingId}. Booking owner: ${booking.userId}`);
+  // Only allow the booking owner to view internal notes
+  if (booking.userId !== user.id) {
+    console.log(`[InternalNotes] UNAUTHORIZED: User ${user.id} attempted to view notes for booking ${bookingId} owned by ${booking.userId}`);
+    throw new Error("You do not have permission to view internal notes for this booking");
+  }
+  
+  console.log(`[InternalNotes] Authorized user ${user.id} to view notes for their booking ${bookingId}`);
+
 
   const internalNotes = await prisma.bookingInternalNote.findMany({
     where: {

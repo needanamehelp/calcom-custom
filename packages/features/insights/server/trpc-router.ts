@@ -174,24 +174,38 @@ const buildHashMapForUsers = <
   return userHashMap;
 };
 
+// Import the personal team finder
+import { findPersonalTeamSimple } from "./findPersonalTeamSimple";
+
 const userBelongsToTeamProcedure = authedProcedure.use(async ({ ctx, next, getRawInput }) => {
   const parse = UserBelongsToTeamInput.safeParse(await getRawInput());
   if (!parse.success) {
     throw new TRPCError({ code: "BAD_REQUEST" });
   }
 
-  // If no teamId is provided and userId matches current user, allow access to individual insights
-  // This enables insights for all users, not just team members
+  // If no teamId is provided and userId matches current user, we'll use the personal team approach
   const userId = (parse.data as any).userId;
   if (!parse.data.teamId && (!userId || userId === ctx.user.id)) {
-    return next({
-      ctx: {
-        user: {
-          ...ctx.user,
-          isOwnerAdminOfParentTeam: false,
+    // Try to find the user's personal team
+    const personalTeam = await findPersonalTeamSimple(ctx.user.id);
+    
+    if (personalTeam) {
+      console.log(`[Insights] Using personal team ${personalTeam.id} for user ${ctx.user.id}`);
+      // If personal team exists, modify the input to use it
+      // This allows using team-based logic without the user having to select a team
+      (parse.data as any).teamId = personalTeam.id;
+    } else {
+      console.log(`[Insights] No personal team found for user ${ctx.user.id}, proceeding with individual access`);
+      // If no personal team, fall back to individual user access
+      return next({
+        ctx: {
+          user: {
+            ...ctx.user,
+            isOwnerAdminOfParentTeam: false,
+          },
         },
-      },
-    });
+      });
+    }
   }
 
   // If teamId is provided, check if user belongs to team

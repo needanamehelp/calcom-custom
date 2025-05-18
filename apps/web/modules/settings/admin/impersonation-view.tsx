@@ -21,7 +21,7 @@ const ImpersonationView = () => {
       const enteredUsername = username.toLowerCase();
       signIn("impersonation-auth", {
         username: enteredUsername,
-        callbackUrl: `${WEBAPP_URL}/event-types`,
+        callbackUrl: `${WEBAPP_URL}/insights`,
       });
     }
   }, [username]);
@@ -34,7 +34,7 @@ const ImpersonationView = () => {
         const enteredUsername = usernameRef.current?.value.toLowerCase();
         signIn("impersonation-auth", {
           username: enteredUsername,
-          callbackUrl: `${WEBAPP_URL}/event-types`,
+          callbackUrl: `${WEBAPP_URL}/insights`,
         });
       }}>
       <div className="flex items-center space-x-2 rtl:space-x-reverse">

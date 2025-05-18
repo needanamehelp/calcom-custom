@@ -14,6 +14,7 @@ import { APP_NAME, WEBSITE_URL } from "@calcom/lib/constants";
 import { getPaymentAppData } from "@calcom/lib/getPaymentAppData";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import useTheme from "@calcom/lib/hooks/useTheme";
+import { Icon } from "@calcom/ui/components/icon";
 import { getIs24hClockFromLocalStorage, isBrowserLocale24h } from "@calcom/lib/timeFormat";
 import { CURRENT_TIMEZONE } from "@calcom/lib/timezoneConstants";
 import { localStorage } from "@calcom/lib/webstorage";
@@ -58,6 +59,8 @@ const RazorpayPaymentForm = dynamic(
     ),
   { ssr: false }
 );
+
+// QR code payments are handled during booking checkout, not in payment history
 
 const PaymentPage: FC<PaymentPageProps> = (props) => {
   const { t, i18n } = useLocale();
@@ -184,6 +187,27 @@ const PaymentPage: FC<PaymentPageProps> = (props) => {
                       booking={props.booking}
                       uid={props.booking.uid}
                     />
+                  )}
+                  {props.payment.appId === "qrcodepay" && !props.payment.success && (
+                    <div className="mt-4 flex flex-col items-center text-center">
+                      <div className="rounded-md bg-yellow-50 p-4">
+                        <div className="flex">
+                          <div className="flex-shrink-0">
+                            <Icon className="h-5 w-5 text-yellow-400" name="info" aria-hidden="true" />
+                          </div>
+                          <div className="ml-3">
+                            <h3 className="text-sm font-medium text-yellow-800">
+                              {t("payment_verification_pending") || "Payment verification pending"}
+                            </h3>
+                            <div className="mt-2 text-sm text-yellow-700">
+                              <p>
+                                {t("your_payment_is_pending_verification") || "Your payment is pending verification. The host will confirm receipt of your payment."}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   )}
                   {props.payment.refunded && (
                     <div className="text-default mt-4 text-center dark:text-gray-300">{t("refunded")}</div>

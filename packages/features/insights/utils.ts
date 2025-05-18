@@ -20,3 +20,6 @@ export function isInsightsEnabled(
   // Enable insights for individual users by default
   return true;
 }
+
+// Personal teams approach is now used instead of individual user insights
+// The prepareIndividualUserParams function has been removed as it's no longer needed

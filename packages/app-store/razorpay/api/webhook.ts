@@ -63,13 +63,25 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const secret = key.key_secret;
 
     // Verify signature
-    const hmac = crypto.createHmac("sha256", secret);
-    const generatedSignature = hmac
-      .update(razorpay_order_id + "|" + razorpay_payment_id)
-      .digest("hex");
+    try {
+      const hmac = crypto.createHmac("sha256", secret);
+      const generatedSignature = hmac
+        .update(razorpay_order_id + "|" + razorpay_payment_id)
+        .digest("hex");
 
-    if (generatedSignature !== razorpay_signature) {
-      return res.status(400).json({ message: "Invalid signature" });
+      // Use time-safe comparison to prevent timing attacks
+      const signatureBuffer = Buffer.from(razorpay_signature, 'hex');
+      const generatedBuffer = Buffer.from(generatedSignature, 'hex');
+      
+      // Only proceed if signatures match and are the same length
+      if (signatureBuffer.length !== generatedBuffer.length ||
+          !crypto.timingSafeEqual(signatureBuffer, generatedBuffer)) {
+        console.error('Signature verification failed');
+        return res.status(400).json({ message: "Invalid signature" });
+      }
+    } catch (error) {
+      console.error('Error during signature verification:', error);
+      return res.status(400).json({ message: "Signature verification failed" });
     }
 
     // Update payment with success
@@ -100,4 +112,4 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 }
 
-export default defaultResponder(handler); 
+export default defaultResponder(handler);

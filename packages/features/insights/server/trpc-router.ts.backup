@@ -1,0 +1,560 @@
+import type { Prisma } from "@prisma/client";
+import md5 from "md5";
+import { z } from "zod";
+
+import dayjs from "@calcom/dayjs";
+import {
+  rawDataInputSchema,
+  routingFormResponsesInputSchema,
+  routingFormStatsInputSchema,
+} from "@calcom/features/insights/server/raw-data.schema";
+import { randomString } from "@calcom/lib/random";
+import { prisma } from "@calcom/prisma";
+// Use the actual client instead of the readonly version
+import type { PrismaClient } from "@prisma/client";
+import { BookingStatus } from "@calcom/prisma/enums";
+import authedProcedure from "@calcom/trpc/server/procedures/authedProcedure";
+import type { CreateInnerContextOptions } from "@calcom/trpc/server/createContext";
+import { router } from "@calcom/trpc/server/trpc";
+
+import { TRPCError } from "@trpc/server";
+
+import { EventsInsights } from "./events";
+import { RoutingEventsInsights } from "./routing-events";
+import { VirtualQueuesInsights } from "./virtual-queues";
+
+// Define the type for users with admin permissions
+type InsightsUserPermissions = {
+  isOwnerAdminOfParentTeam: boolean;
+};
+
+// Type for the extended user with admin permissions
+type ExtendedUser = CreateInnerContextOptions["user"] & InsightsUserPermissions;
+
+// For user objects that need safe type conversion
+type SafeUser = {
+  id: number;
+  organizationId?: number | null;
+  // Add other important properties that are needed
+};
+
+// Handle different user types in the system
+// 1. Session users from ctx.user (from auth)
+// 2. Database user objects (from prisma queries)
+// 3. Extended users with admin permissions
+
+// Helper function to adapt user objects to a consistent format
+const adaptUser = (user: unknown): ExtendedUser => {
+  // First convert to any to access properties
+  const userAny = user as any;
+  
+  // Create a base object with required properties from CreateInnerContextOptions["user"]
+  // Only include properties that definitely exist on the user type
+  const baseUser: Partial<CreateInnerContextOptions["user"]> & InsightsUserPermissions = {
+    id: userAny.id,
+    email: userAny.email || "",
+    name: userAny.name || userAny.username || "",
+    username: userAny.username || userAny.name || null,
+    organizationId: userAny.organizationId,
+    timeZone: userAny.timeZone || "UTC",
+    weekStart: userAny.weekStart || "Sunday",
+    bio: userAny.bio || null,
+    avatarUrl: userAny.avatarUrl || userAny.avatar || null,
+    // Add our special admin permission flag
+    isOwnerAdminOfParentTeam: userAny.isOwnerAdminOfParentTeam === true
+  };
+  
+  // Cast to satisfy TypeScript
+  return baseUser as unknown as ExtendedUser;
+};
+
+// Helper function specific for database user objects
+const adaptDbUser = (dbUser: any): ExtendedUser => {
+  // Database users have different property structure
+  // Map them to our expected user type
+  return adaptUser({
+    ...dbUser,
+    // Add any special mappings needed
+    // Many db users have avatar instead of avatarUrl
+    avatarUrl: dbUser.avatarUrl || dbUser.avatar,
+    // Add admin permissions explicitly as false if not present
+    isOwnerAdminOfParentTeam: false,
+  });
+};
+
+// Create a type specifically for the ctx we use in this router
+type InsightsContext = {
+  user: ExtendedUser;
+  insightsDb: PrismaClient;
+};
+
+const UserBelongsToTeamInput = z.object({
+  teamId: z.coerce.number().optional().nullable(),
+  isAll: z.boolean().optional(),
+});
+
+type BuildBaseWhereConditionCtxType = {
+  userIsOwnerAdminOfParentTeam: boolean | undefined; // Accept undefined but handle it in the function
+  userOrganizationId: number | null;
+  insightsDb: PrismaClient;
+};
+
+interface BuildBaseWhereConditionType {
+  teamId?: number | null;
+  eventTypeId?: number;
+  memberUserId?: number;
+  userId?: number;
+  isAll?: boolean;
+  ctx: BuildBaseWhereConditionCtxType;
+}
+
+const bookingStatusSchema = z.enum(["NO_BOOKING", ...Object.values(BookingStatus)]).optional();
+
+// Import the simplified personal team finder that doesn't rely on complex context types
+import { findPersonalTeamSimple } from "./findPersonalTeamSimple";
+
+const buildBaseWhereCondition = async ({
+  teamId,
+  eventTypeId,
+  memberUserId,
+  userId,
+  isAll,
+  ctx,
+}: BuildBaseWhereConditionType): Promise<{
+  whereCondition: Prisma.BookingTimeStatusWhereInput;
+  isEmptyResponse?: boolean;
+}> => {
+  let whereCondition: Prisma.BookingTimeStatusWhereInput = {};
+  
+  // EventType Filter
+  if (eventTypeId) whereCondition.OR = [{ eventTypeId }, { eventParentId: eventTypeId }];
+  
+  // User/Member filter
+  if (memberUserId) whereCondition.userId = memberUserId;
+  
+  // Always enable individual user insights - highest priority
+  if (userId) {
+    console.log(`[Insights] Using individual user insights for userId: ${userId}`);
+    whereCondition.userId = userId;
+    // Return immediately to skip team-based conditions
+    return { whereCondition };
+  }
+  
+  // If no teamId and no userId were specified, try to find a personal team for the current user
+  if (!teamId && !userId && !isAll) {
+    // Extract user ID safely from the context following Cal.com patterns
+    // CreateInnerContextOptions["user"] is the standard pattern in Cal.com
+    const currentUserId = typeof (ctx as any).user?.id === 'number' ? (ctx as any).user.id : undefined;
+      
+    if (currentUserId) {
+      console.log(`[Insights] Looking for personal team for user ${currentUserId}`);
+      // Use our simplified function that doesn't rely on complex context types
+      const personalTeam = await findPersonalTeamSimple(currentUserId);
+        
+      if (personalTeam?.id) {
+        console.log(`[Insights] Found personal team ${personalTeam.id} for user ${currentUserId}`);
+        // Use the personal team ID for the query
+        teamId = personalTeam.id;
+      } else {
+        console.log(`[Insights] No personal team found for user ${currentUserId}`);
+      }
+    }
+  }
+  // organization-wide queries condition
+  if (isAll && (ctx.userIsOwnerAdminOfParentTeam === true) && ctx.userOrganizationId) {
+    const teamsFromOrg = await ctx.insightsDb.team.findMany({
+      where: {
+        parentId: ctx.userOrganizationId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (teamsFromOrg.length === 0) {
+      return {
+        whereCondition: {
+          ...whereCondition,
+          OR: [
+            ...(whereCondition.OR ?? []),
+            {
+              teamId: ctx.userOrganizationId,
+              isTeamBooking: true,
+            },
+          ],
+        },
+        isEmptyResponse: true,
+      };
+    }
+
+    const teamConditional = {
+      id: {
+        in: [ctx.userOrganizationId, ...teamsFromOrg.map((t) => t.id)],
+      },
+    };
+    const usersFromOrg = await ctx.insightsDb.membership.findMany({
+      where: {
+        team: teamConditional,
+        accepted: true,
+      },
+      select: {
+        userId: true,
+      },
+    });
+    const userIdsFromOrg = usersFromOrg.map((u) => u.userId);
+    whereCondition = {
+      ...whereCondition,
+      OR: [
+        {
+          teamId: {
+            in: [ctx.userOrganizationId, ...teamsFromOrg.map((t) => t.id)],
+          },
+          isTeamBooking: true,
+        },
+        {
+          userId: {
+            in: userIdsFromOrg,
+          },
+          isTeamBooking: false,
+        },
+      ],
+    };
+  }
+
+  if (teamId && !isAll && !eventTypeId) {
+    const usersFromTeam = await ctx.insightsDb.membership.findMany({
+      where: {
+        teamId: teamId,
+        accepted: true,
+      },
+      select: {
+        userId: true,
+      },
+    });
+    const userIdsFromTeam = usersFromTeam.map((u) => u.userId);
+    whereCondition = {
+      ...whereCondition,
+      OR: [
+        {
+          teamId,
+          isTeamBooking: true,
+        },
+        {
+          userId: {
+            in: userIdsFromTeam,
+          },
+          isTeamBooking: false,
+        },
+      ],
+    };
+  }
+  return { whereCondition };
+};
+
+// Define a type for database user objects consistent with the app's pattern
+type DbUser = Partial<CreateInnerContextOptions["user"]> & { id: number };
+
+// Helper function to build a map of users keyed by their ID
+const buildHashMapForUsers = (users: DbUser[]) => {
+  const userHashMap = new Map();
+  for (const user of users) {
+    // Store adapted user objects directly in the hashmap
+    // This ensures all retrieved objects already have the correct typing
+    userHashMap.set(user.id, adaptDbUser(user));
+  }
+  return userHashMap;
+};
+
+const userBelongsToTeamProcedure = authedProcedure.use(async ({ ctx, next, getRawInput }) => {
+  const parse = UserBelongsToTeamInput.safeParse(await getRawInput());
+  if (!parse.success) {
+    throw new TRPCError({ code: "BAD_REQUEST" });
+  }
+  
+  // Always allow individual user queries - this is key for users without teams
+  const userId = (await getRawInput() as any)?.userId;
+  if (userId && userId === ctx.user.id) {
+    console.log(`[Insights] Allowing individual user insight access for userId=${userId}`);
+    return next();
+  }
+
+  // If no teamId is provided, allow access to individual insights for the current user
+  // This enables insights for all users, not just team members
+  if (!parse.data.teamId) {
+    // If userId is provided, ensure it matches the current user (for security)
+    const userId = (parse.data as any).userId;
+    if (userId && userId !== ctx.user.id) {
+      throw new TRPCError({ code: "UNAUTHORIZED", message: "Cannot access another user's insights" });
+    }
+    
+    // Set the userId to the current user's id if not explicitly provided
+    // This ensures individual insights work properly
+    if (!userId) {
+      (parse.data as any).userId = ctx.user.id;
+    }
+    
+    return next({
+      ctx: {
+        user: {
+          ...ctx.user,
+          isOwnerAdminOfParentTeam: false,
+        },
+      },
+    });
+  }
+
+  // If teamId is provided, check if user belongs to team
+  // If teamId is not provided, check if user belongs to any team
+  const membershipWhereConditional: Prisma.MembershipWhereInput = {
+    userId: ctx.user.id,
+    accepted: true,
+  };
+
+  if (parse.data.teamId) {
+    membershipWhereConditional["teamId"] = parse.data.teamId;
+  }
+
+  const membership = await ctx.insightsDb.membership.findFirst({
+    where: membershipWhereConditional,
+  });
+
+  let isOwnerAdminOfParentTeam = false;
+
+  // Probably we couldn't find a membership because the user is not a direct member of the team
+  // So that would mean ctx.user.organization is present
+  if ((parse.data.isAll && ctx.user.organizationId) || (!membership && ctx.user.organizationId)) {
+    //Look for membership type in organizationId
+    if (!membership && ctx.user.organizationId && parse.data.teamId) {
+      const isChildTeamOfOrg = await ctx.insightsDb.team.findFirst({
+        where: {
+          id: parse.data.teamId,
+          parentId: ctx.user.organizationId,
+        },
+      });
+      if (!isChildTeamOfOrg) {
+        throw new TRPCError({ code: "UNAUTHORIZED" });
+      }
+    }
+
+    const membershipOrg = await ctx.insightsDb.membership.findFirst({
+      where: {
+        userId: ctx.user.id,
+        teamId: ctx.user.organizationId,
+        accepted: true,
+        role: {
+          in: ["OWNER", "ADMIN"],
+        },
+      },
+    });
+    if (!membershipOrg) {
+      throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
+    isOwnerAdminOfParentTeam = true;
+  }
+
+  // Create a properly typed extended user by first converting to a base type
+  // that we know has the exact structure we need
+  const baseUserProps = {
+    // Start with all properties from ctx.user
+    ...ctx.user,
+    // Add our admin permission flag explicitly
+    isOwnerAdminOfParentTeam: isOwnerAdminOfParentTeam,
+  };
+
+  // Use our adapter function to ensure all required properties exist
+  const extendedUser = adaptUser(baseUserProps);
+
+  return next({
+    ctx: {
+      ...ctx,
+      user: extendedUser,
+      insightsDb: ctx.insightsDb,
+    },
+  });
+});
+
+const userSelect = {
+  id: true,
+  username: true,
+  email: true,
+  name: true,
+  avatar: true,
+  // Include all fields we use in our adaptDbUser function
+  timeZone: true,
+  weekStart: true,
+  organizationId: true,
+  bio: true,
+  avatarUrl: true,
+  organization: {
+    select: {
+      id: true,
+      isOrgAdmin: true,
+      metadata: true,
+      name: true,
+      slug: true,
+      isPrivate: true,
+    },
+  },
+  isOwnerAdminOfParentTeam: true,
+};
+
+const emptyResponseEventsByStatus = {
+  empty: true,
+  created: {
+    count: 0,
+    deltaPrevious: 0,
+  },
+  completed: {
+    count: 0,
+    deltaPrevious: 0,
+  },
+  rescheduled: {
+    count: 0,
+    deltaPrevious: 0,
+  },
+  cancelled: {
+    count: 0,
+    deltaPrevious: 0,
+  },
+  rating: {
+    count: 0,
+    deltaPrevious: 0,
+  },
+  no_show: {
+    count: 0,
+    deltaPrevious: 0,
+  },
+  no_show_guest: {
+    count: 0,
+    deltaPrevious: 0,
+  },
+  csat: {
+    count: 0,
+    deltaPrevious: 0,
+  },
+  previousRange: {
+    startDate: dayjs().toISOString(),
+    endDate: dayjs().toISOString(),
+  },
+};
+
+export interface IResultTeamList {
+  id: number;
+  slug: string | null;
+  name: string | null;
+  logoUrl: string | null;
+  userId?: number;
+  isOrg?: boolean;
+  isPersonal?: boolean;
+}
+
+const BATCH_SIZE = 1000; // Adjust based on your needs
+
+export const createInsightsRouter = () => {
+  return createRouter(prisma);
+};
+
+export const insightsRouter = createInsightsRouter();
+
+// ... rest of the code remains the same ...
+    isOwnerAdminOfParentTeam: boolean;
+  };
+}) {
+  if (!teamId && !userId) {
+    return [];
+  }
+
+  const membershipWhereConditional: Prisma.MembershipWhereInput = {};
+
+  let childrenTeamIds: number[] = [];
+
+  if (isAll && teamId && adaptUser(user).organizationId && adaptUser(user).isOwnerAdminOfParentTeam) {
+    const childTeams = await prisma.team.findMany({
+      where: {
+        parentId: user.organizationId,
+      },
+      select: {
+        id: true,
+      },
+    });
+    if (childTeams.length > 0) {
+      childrenTeamIds = childTeams.map((team) => team.id);
+    }
+    membershipWhereConditional["teamId"] = {
+      in: [user.organizationId as number, ...childrenTeamIds],
+    };
+  }
+
+  if (teamId && !isAll) {
+    membershipWhereConditional["teamId"] = teamId as number;
+    membershipWhereConditional["userId"] = user.id;
+  }
+  if (userId) {
+    membershipWhereConditional["userId"] = userId as number;
+  }
+
+  // I'm not using unique here since when userId comes from input we should look for every
+  // event type that user owns
+  const membership = await prisma.membership.findFirst({
+    where: membershipWhereConditional,
+  });
+
+  if (!membership && !adaptUser(user).isOwnerAdminOfParentTeam) {
+    throw new Error("User is not part of a team/org");
+  }
+
+  const eventTypeWhereConditional: Prisma.EventTypeWhereInput = {};
+  if (isAll && childrenTeamIds.length > 0 && adaptUser(user).organizationId && adaptUser(user).isOwnerAdminOfParentTeam) {
+    eventTypeWhereConditional["teamId"] = {
+      in: [adaptUser(user).organizationId as number, ...childrenTeamIds], // Ensure organizationId is treated as number
+    };
+  }
+  if (teamId && !isAll) {
+    eventTypeWhereConditional["teamId"] = teamId as number; // Explicit cast to number
+  }
+  if (userId) {
+    eventTypeWhereConditional["userId"] = userId as number; // Explicit cast to number
+  }
+  let eventTypeResult: Prisma.EventTypeGetPayload<{
+    select: {
+      id: true;
+      slug: true;
+      teamId: true;
+      title: true;
+      team: {
+        select: {
+          name: true;
+        };
+      };
+    };
+  }>[] = [];
+
+  let isMember = membership?.role === "MEMBER";
+  if (adaptUser(user).isOwnerAdminOfParentTeam) {
+    isMember = false;
+  }
+  if (isMember) {
+    eventTypeWhereConditional["OR"] = [
+      { userId: user.id },
+      { users: { some: { id: user.id } } },
+      // @TODO this is not working as expected
+      // hosts: { some: { id: user.id } },
+    ];
+  }
+  eventTypeResult = await prisma.eventType.findMany({
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      teamId: true,
+      team: {
+        select: {
+          name: true,
+        },
+      },
+    },
+    where: eventTypeWhereConditional,
+  });
+
+  return eventTypeResult;
+}

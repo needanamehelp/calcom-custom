@@ -38,6 +38,8 @@ import { viewerTeamsRouter } from "./teams/_router";
 import { travelSchedulesRouter } from "./travelSchedules/_router";
 import { webhookRouter } from "./webhook/_router";
 import { workflowsRouter } from "./workflows/_router";
+import { razorpayRouter } from "./razorpay/_router";
+import { qrcodepayRouter } from "./qrcodepay/_router";
 
 export const viewerRouter = mergeRouters(
   loggedInViewerRouter,
@@ -82,5 +84,7 @@ export const viewerRouter = mergeRouters(
     routingForms: routingFormsRouter,
     ooo: oooRouter,
     travelSchedules: travelSchedulesRouter,
+    razorpay: razorpayRouter,
+    qrcodepay: qrcodepayRouter,
   })
 );

@@ -34,7 +34,7 @@ async function getHandler(req: CustomNextApiRequest) {
   req.args = isSystemWideAdmin ? {} : { where: { userId } };
   // Proof of concept: allowing mutation in exchange of composability
   handleAdminRequests(req);
-  const data = await prisma.apiKey.findMany(req.args);
+  const data = await prisma.apiKey.findMany(req.args as Prisma.ApiKeyFindManyArgs);
   return { api_keys: data.map((v) => apiKeyPublicSchema.parse(v)) };
 }
 

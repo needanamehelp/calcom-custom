@@ -8,8 +8,10 @@ import {
   type OrganizationBranding,
 } from "@calcom/features/ee/organizations/context/provider";
 import { KBarTrigger } from "@calcom/features/kbar/Kbar";
+import { UserPermissionRole } from "@calcom/prisma/enums";
 import classNames from "@calcom/ui/classNames";
 
+import { filterNavigationItemsByRole } from "../useFilteredNavigationItems";
 import { TeamInviteBadge } from "../TeamInviteBadge";
 import type { NavigationItemType } from "./NavigationItem";
 import { NavigationItem, MobileNavigationItem, MobileNavigationMoreItem } from "./NavigationItem";
@@ -183,19 +185,26 @@ const platformNavigationItems: NavigationItemType[] = [
 
 const useNavigationItems = (isPlatformNavigation = false) => {
   const orgBranding = useOrgBranding();
+  const session = useSession();
+  const userRole = session.data?.user.role;
+  
   return useMemo(() => {
-    const items = !isPlatformNavigation ? getNavigationItems(orgBranding) : platformNavigationItems;
+    // Get base navigation items based on platform or regular navigation
+    const baseItems = !isPlatformNavigation ? getNavigationItems(orgBranding) : platformNavigationItems;
+    
+    // Apply role-based filtering for regular navigation items
+    const items = !isPlatformNavigation ? filterNavigationItemsByRole(baseItems, userRole) : baseItems;
 
-    const desktopNavigationItems = items.filter((item) => item.name !== MORE_SEPARATOR_NAME);
+    const desktopNavigationItems = items.filter((item: NavigationItemType) => item.name !== MORE_SEPARATOR_NAME);
     const mobileNavigationBottomItems = items.filter(
-      (item) => (!item.moreOnMobile && !item.onlyDesktop) || item.name === MORE_SEPARATOR_NAME
+      (item: NavigationItemType) => (!item.moreOnMobile && !item.onlyDesktop) || item.name === MORE_SEPARATOR_NAME
     );
     const mobileNavigationMoreItems = items.filter(
-      (item) => item.moreOnMobile && !item.onlyDesktop && item.name !== MORE_SEPARATOR_NAME
+      (item: NavigationItemType) => item.moreOnMobile && !item.onlyDesktop && item.name !== MORE_SEPARATOR_NAME
     );
 
     return { desktopNavigationItems, mobileNavigationBottomItems, mobileNavigationMoreItems };
-  }, [isPlatformNavigation, orgBranding]);
+  }, [isPlatformNavigation, orgBranding, userRole]);
 };
 
 export const Navigation = ({ isPlatformNavigation = false }: { isPlatformNavigation?: boolean }) => {
@@ -203,7 +212,7 @@ export const Navigation = ({ isPlatformNavigation = false }: { isPlatformNavigat
 
   return (
     <nav className="mt-2 flex-1 md:px-2 lg:mt-4 lg:px-0">
-      {desktopNavigationItems.map((item) => (
+      {desktopNavigationItems.map((item: NavigationItemType) => (
         <NavigationItem key={item.name} item={item} />
       ))}
       <div className="text-subtle mt-0.5 lg:hidden">
@@ -234,7 +243,7 @@ const MobileNavigation = ({ isPlatformNavigation = false }: { isPlatformNavigati
           "pwa:pb-[max(0.25rem,env(safe-area-inset-bottom))] pwa:-mx-2 bg-muted border-subtle fixed bottom-0 left-0 z-30 flex w-full border-t bg-opacity-40 px-1 shadow backdrop-blur-md md:hidden",
           isEmbed && "hidden"
         )}>
-        {mobileNavigationBottomItems.map((item) => (
+        {mobileNavigationBottomItems.map((item: NavigationItemType) => (
           <MobileNavigationItem key={item.name} item={item} />
         ))}
       </nav>
@@ -249,7 +258,7 @@ export const MobileNavigationMoreItems = () => {
 
   return (
     <ul className="border-subtle mt-2 rounded-md border">
-      {mobileNavigationMoreItems.map((item) => (
+      {mobileNavigationMoreItems.map((item: NavigationItemType) => (
         <MobileNavigationMoreItem key={item.name} item={item} />
       ))}
     </ul>

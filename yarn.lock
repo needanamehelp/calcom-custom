@@ -3458,6 +3458,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@calcom/qrcodepay@workspace:packages/app-store/qrcodepay":
+  version: 0.0.0-use.local
+  resolution: "@calcom/qrcodepay@workspace:packages/app-store/qrcodepay"
+  dependencies:
+    "@calcom/lib": "*"
+    "@calcom/types": "*"
+  languageName: unknown
+  linkType: soft
+
 "@calcom/raycast@workspace:packages/app-store/raycast":
   version: 0.0.0-use.local
   resolution: "@calcom/raycast@workspace:packages/app-store/raycast"

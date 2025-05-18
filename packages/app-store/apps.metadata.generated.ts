@@ -69,6 +69,7 @@ import pipedrive_crm_config_json from "./pipedrive-crm/config.json";
 import plausible_config_json from "./plausible/config.json";
 import posthog_config_json from "./posthog/config.json";
 import qr_code_config_json from "./qr_code/config.json";
+import qrcodepay_config_json from "./qrcodepay/config.json";
 import raycast_config_json from "./raycast/config.json";
 import razorpay_config_json from "./razorpay/config.json";
 import retell_ai_config_json from "./retell-ai/config.json";
@@ -178,6 +179,7 @@ export const appStoreMetadata = {
   plausible: plausible_config_json,
   posthog: posthog_config_json,
   qr_code: qr_code_config_json,
+  qrcodepay: qrcodepay_config_json,
   raycast: raycast_config_json,
   razorpay: razorpay_config_json,
   "retell-ai": retell_ai_config_json,

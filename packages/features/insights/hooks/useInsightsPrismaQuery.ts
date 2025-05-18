@@ -29,18 +29,37 @@ interface BaseInsightsProps {
 }
 
 // Common utility to prepare query parameters with user context
+const getUserInsightsParams = (params: BaseInsightsProps, user: any): BaseInsightsProps => {
+  const isTeamQuery = !!params.teamId;
+  const isUserQuery = !!params.userId;
+  const currentUserId = user?.user?.id;
+  
+  // Special handling for individual users without a team:
+  // - Always include userId for individual users' queries
+  // - Make sure isAll is false to ensure we only get their data
+  const result = {
+    ...params,
+    // Force userId to be current user's ID if no team ID and no specific user ID was provided
+    userId: (!isTeamQuery && !isUserQuery && currentUserId) ? currentUserId : params.userId,
+    // When no teamId is provided, always set isAll to false
+    isAll: isTeamQuery ? params.isAll : false,
+  };
+  
+  console.log("Insights params:", { originalParams: params, modifiedParams: result, currentUserId });
+  return result;
+};
+
+// Common utility to prepare query parameters with user context
 function useInsightsQueryParams(props: BaseInsightsProps): InsightQueryParams {
-  const { teamId, userId, isAll, memberUserIds, memberUserId, eventTypeId, startDate, endDate, ...rest } = props;
   const session = useSession();
+  const params = getUserInsightsParams(props, session.data);
+  const { teamId, userId, isAll, memberUserIds, memberUserId, eventTypeId, startDate, endDate, ...rest } = params;
 
   return useMemo(() => {
-    // Get current user ID for individual users
-    const currentUserId = session.data?.user?.id;
-
     return {
       teamId,
       // Always include a userId, either from props or from session
-      userId: userId || (isAll ? undefined : currentUserId),
+      userId: userId || (isAll ? undefined : session.data?.user?.id),
       memberUserId,
       memberUserIds,
       eventTypeId,
