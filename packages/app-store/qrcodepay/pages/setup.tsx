@@ -158,7 +158,7 @@ export default function QRCodePaymentSetup() {
               uploadInstruction="Upload a square QR code image for payments"
             />
             {!qrCodeUrl && isUpdating && (
-              <p className="text-sm text-red-500 mt-1">QR code image is required</p>
+              <p className="text-sm text-red-500 mt-1">QR code image is reAquired</p>
             )}
           </div>
         </div>

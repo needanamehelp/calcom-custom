@@ -506,7 +506,7 @@ paths:
   /api/integrations/googlecalendar/callback:
     post:
       description: Gets and stores the OAuth token for a Google Calendar integration.
-      summary: Gets and stores the OAuth token
+      summary: Gets and stores the OAuth tokengooglecalendar/
       tags:
         - Integrations
   /api/integrations/office365calendar/add:

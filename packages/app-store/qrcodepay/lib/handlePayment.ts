@@ -105,19 +105,18 @@ export async function handlePayment(
     
     console.log(`QRCodePay handlePayment: Booking status=${booking.status}, shouldForceConfirm=${shouldForceConfirm}`);
     
-    // Always update the booking status to ACCEPTED regardless of payment status
-    // This ensures the booking is confirmed even with pending payments
-    if (booking.status !== BookingStatus.ACCEPTED) {
-      await prisma.booking.update({
-        where: {
-          id: bookingId,
-        },
-        data: {
-          status: BookingStatus.ACCEPTED,
-        },
-      });
-      console.log(`QRCodePay: Updated booking ${bookingId} status to ACCEPTED`);
-    }
+    // CRITICAL FIX: ALWAYS update booking status to ACCEPTED
+    // This is a key requirement - bookings must be confirmed regardless of payment
+    // We force this for ALL bookings, not just ones with certain status
+    await prisma.booking.update({
+      where: {
+        id: bookingId,
+      },
+      data: {
+        status: BookingStatus.ACCEPTED,
+      },
+    });
+    console.log(`QRCodePay: Updated booking ${bookingId} status to ACCEPTED - FORCE CONFIRMED`);
     
     // Update payment data if the client claimed they paid
     if (clientClaimedPaid) {

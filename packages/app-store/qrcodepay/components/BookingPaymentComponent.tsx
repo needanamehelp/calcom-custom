@@ -132,11 +132,10 @@ const BookingPaymentComponent = ({
     }
   };
 
-  // IMPORTANT: Display the price as-is without any conversion
-  // This ensures 1500 shows as 1500, not 15.00
-  const formattedAmount = `${getCurrencySymbol(paymentData.currency)} ${paymentData.price} ${
-    paymentData.currency
-  }`;
+  // CRITICAL FIX: Cal.com expects payment amounts in cents/paise (15.00 is stored as 1500)
+  // To ensure the correct amount display, we need to avoid the automatic division by 100
+  // that occurs in formatting systems
+  const formattedAmount = `${getCurrencySymbol(paymentData.currency)} ${paymentData.price} ${paymentData.currency}`;
 
   const handleConfirmPayment = async () => {
     setIsProcessing(true);
@@ -212,8 +211,21 @@ const BookingPaymentComponent = ({
         <Button
           className="w-full sm:w-auto"
           color="primary"
-          onClick={() => setShowQRCodeDialog(true)}
+          onClick={() => {
+            console.log('Opening QR code dialog...');
+            // Force dialog to open and ensure state is updated
+            setShowQRCodeDialog(true);
+            
+            // Debug info for troubleshooting
+            console.log('QR code payment details:', {
+              bookingId: bookingData.bookingId,
+              accountName: paymentData.accountName,
+              qrCodeUrl: paymentData.qrCodeUrl,
+              amount: formattedAmount
+            });
+          }}
           StartIcon="credit-card"
+          data-testid="qr-code-pay-button"
         >
           {t("pay_to_book") || "Pay to Book"}
         </Button>
@@ -228,11 +240,19 @@ const BookingPaymentComponent = ({
         </Button>
       </div>
 
-      {/* QR Code Payment Dialog */}
-      <Dialog open={showQRCodeDialog} onOpenChange={setShowQRCodeDialog}>
+      {/* QR Code Payment Dialog - Robust implementation */}
+      <Dialog
+        open={showQRCodeDialog}
+        onOpenChange={(open) => {
+          console.log('Dialog onOpenChange:', open);
+          setShowQRCodeDialog(open);
+        }}
+        defaultOpen={false}
+        modal={true}
+      >
         <DialogContent size="lg">
-          <DialogHeader 
-            title={t("qr_code_payment_title") || "Complete Payment via QR Code"} 
+          <DialogHeader
+            title={t("qr_code_payment_title") || "Complete Payment via QR Code"}
             subtitle={`${t("amount") || "Amount"}: ${formattedAmount}`}
           />
           
@@ -250,22 +270,15 @@ const BookingPaymentComponent = ({
             <div className="mt-4">
               <div className="relative h-64 w-64 overflow-hidden rounded-lg border border-gray-300 bg-white p-2">
                 {paymentData.qrCodeUrl ? (
-                  <Image
+                  <Image 
                     src={paymentData.qrCodeUrl}
-                    alt="Payment QR Code"
-                    width={256}
-                    height={256}
-                    className="h-full w-full object-contain"
-                    onError={() => {
-                      console.error("QR Code image failed to load:", paymentData.qrCodeUrl);
-                      showToast("QR Code image not loaded. Using placeholder instead.", "warning");
-                    }}
+                    alt="QR code for payment"
+                    fill
+                    style={{ objectFit: 'contain' }}
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-gray-50">
-                    <p className="text-subtle text-center text-sm">
-                      {t("qr_code_not_available") || "QR code image not available"}
-                    </p>
+                  <div className="flex h-full w-full items-center justify-center bg-gray-100">
+                    <Icon name="loader" className="h-8 w-8 animate-spin text-gray-400" />
                   </div>
                 )}
               </div>
@@ -306,9 +319,11 @@ const BookingPaymentComponent = ({
                   
                   if (result && result.id) {
                     showToast("Booking confirmed with pending payment", "success");
+                    
+                    // CRITICAL FIX: Always pass isPaid=true to confirm booking regardless of payment status
+                    // This ensures the booking is always confirmed even if payment is pending
+                    onSuccessBooking(result.id.toString(), true);
                     setShowQRCodeDialog(false);
-                    // Always pass true here to ensure booking is confirmed regardless of payment status
-                    onSuccessBooking(result.id.toString(), true); 
                   }
                 } catch (error) {
                   console.error("Error creating payment:", error);

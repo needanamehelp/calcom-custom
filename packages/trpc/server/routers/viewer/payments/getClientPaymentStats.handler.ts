@@ -29,23 +29,45 @@ type BookingWithPayment = Prisma.BookingGetPayload<{
 function extractPayment(payment: PaymentData): SinglePayment | null {
   if (!payment) return null;
   
+  // Log the payment for debugging
+  console.log('Extracting payment from data:', JSON.stringify(payment).substring(0, 200) + '...');
+  
   // If it's an array with items, return the first one
   if (Array.isArray(payment) && payment.length > 0) {
+    console.log('Payment is an array, returning first item');
     return payment[0];
   }
   
   // If it's a single non-array object, return it directly
   if (!Array.isArray(payment) && typeof payment === 'object') {
+    console.log('Payment is a single object, returning directly');
     return payment as SinglePayment;
   }
   
+  console.log('Payment extraction failed, returning null');
   return null;
 }
 
 // Type guard to check if payment exists
 function hasPayment(booking: BookingWithPayment): boolean {
-  // Use the helper to safely extract a payment if it exists
-  return extractPayment(booking.payment as PaymentData) !== null;
+  if (!booking || !booking.payment) return false;
+  
+  try {
+    // Handle array of payments
+    if (Array.isArray(booking.payment)) {
+      return booking.payment.length > 0;
+    }
+    
+    // Handle single payment object with necessary fields
+    if (typeof booking.payment === 'object' && booking.payment !== null) {
+      return true;
+    }
+  } catch (error) {
+    console.error(`Error checking payment for booking ${booking.id}:`, error);
+  }
+  
+  // If we got here, no valid payment was found
+  return false;
 }
 
 type GetClientPaymentStatsOptions = {

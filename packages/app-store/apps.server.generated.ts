@@ -69,6 +69,7 @@ export const apiHandlers = {
   plausible: import("./plausible/api"),
   posthog: import("./posthog/api"),
   qr_code: import("./qr_code/api"),
+  qrcodepay: import("./qrcodepay/api"),
   raycast: import("./raycast/api"),
   razorpay: import("./razorpay/api"),
   "retell-ai": import("./retell-ai/api"),

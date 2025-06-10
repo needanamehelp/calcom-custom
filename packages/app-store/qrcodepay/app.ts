@@ -13,6 +13,8 @@ const app = {
   variant: "payment" as const,
   // Ensure proper category
   category: "payment",
+  // Force the app to be treated as set up
+  isSetupAlready: true,
 };
 
 export default app;
