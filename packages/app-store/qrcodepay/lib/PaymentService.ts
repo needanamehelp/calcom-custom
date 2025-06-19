@@ -81,20 +81,24 @@ export class PaymentService implements IAbstractPaymentService {
     // Default success to false to create pending payments by default
     // This ensures payments show up in the clients tab with proper status
     const isPaid = paymentData.success === true; 
-    const forceConfirmBooking = true; // ALWAYS force confirm bookings
     
-    console.log(`QRCodePay PaymentService: Creating payment with EXPLICIT isPaid=${isPaid}`);
+    // FIX: Need to show QR code during booking, so don't force confirmation
+    const forceConfirmBooking = false;
+    
+    console.log(`QRCodePay PaymentService: Creating payment with amount=${payment.amount} currency=${payment.currency}`);
     
     // Create a payment record for QR code payment
+    // FIX: Do NOT adjust the amount - keep it as-is to prevent decimal conversion issues
     return await prisma.payment.create({
       data: {
+        // FIX: Do NOT modify the amount - keep it exactly as provided by the system
         amount: payment.amount,
         currency: payment.currency,
         bookingId,
         // These fields are required by Prisma schema
         fee: 0, // No fee for QR code payments
         refunded: false,
-        success: isPaid, // CRITICAL FIX: Set success based on isPaid parameter
+        success: isPaid,
         externalId: `qrcodepay_${Date.now()}_${bookingId}`,
         uid: `qrcodepay_${Date.now()}_${bookingId}`,
         data: {
@@ -103,10 +107,12 @@ export class PaymentService implements IAbstractPaymentService {
           paymentInstructions: this.credentials.instructions,
           clientClaimedPaid: isPaid, // Track whether client has claimed payment
           verifiedByHost: isPaid, // Only auto-verify if marked as paid
-          forceConfirmBooking: true, // ALWAYS confirm bookings
-          paymentStatus: isPaid ? "paid" : "pending", // CRITICAL: Explicitly track payment status
+          forceConfirmBooking: false, // EXPLICIT FALSE: Don't force confirm so QR code is displayed
+          paymentStatus: isPaid ? "paid" : "pending",
           createdAt: new Date().toISOString(),
           originalAmount: payment.amount, // Store original amount for reference
+          // Add additional fields to help with debugging
+          isQRCodePayment: true,
         },
       },
     });
@@ -239,7 +245,8 @@ export class PaymentService implements IAbstractPaymentService {
   }
 
   isSetupAlready(): boolean {
-    return true;
+    // Check if QR code URL is properly configured
+    return !!this.credentials && !!this.credentials.qrCodeUrl;
   }
 }
 

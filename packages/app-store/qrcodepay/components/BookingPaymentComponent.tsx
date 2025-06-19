@@ -67,6 +67,11 @@ const BookingPaymentComponent = ({
     try {
       // Log the QR code URL to verify it exists
       console.log("QR Code URL being used:", paymentData.qrCodeUrl);
+      console.log("Payment amount being used:", params.amount, params.currency);
+      
+      // IMPORTANT: Make sure we're sending the exact amount and not manipulating it
+      // The backend expects the raw amount value (e.g. 1500, not 15.00)
+      const amount = params.amount;
       
       // Use fetch API to create the payment directly
       const response = await fetch("/api/payments", {
@@ -75,7 +80,7 @@ const BookingPaymentComponent = ({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          amount: params.amount,
+          amount: amount, // Use the raw amount directly
           currency: params.currency,
           bookingId: params.bookingId,
           eventName: params.eventName || "",
@@ -92,7 +97,10 @@ const BookingPaymentComponent = ({
             forceConfirmBooking: params.forceConfirmBooking === true,
             paymentStatus: params.markAsPaid === true ? "paid" : "pending",
             // Include the actual requested amount for better tracking
-            requestedAmount: params.amount,
+            requestedAmount: amount,
+            // Debug info to track amount display issues
+            originalPriceFromPaymentData: paymentData.price,
+            amountDisplay: `${amount} ${params.currency}`,
           }
         }),
       });
@@ -136,6 +144,10 @@ const BookingPaymentComponent = ({
   // To ensure the correct amount display, we need to avoid the automatic division by 100
   // that occurs in formatting systems
   const formattedAmount = `${getCurrencySymbol(paymentData.currency)} ${paymentData.price} ${paymentData.currency}`;
+  
+  // Additional debug logging for amount display issues
+  console.log("QRCodePay: Display amount (raw number):", paymentData.price);
+  console.log("QRCodePay: Formatted amount:", formattedAmount);
 
   const handleConfirmPayment = async () => {
     setIsProcessing(true);
@@ -203,7 +215,7 @@ const BookingPaymentComponent = ({
       </h3>
       
       <div className="text-emphasis text-center">
-        <p className="text-lg font-medium">{t("amount") || "Amount"}: {formattedAmount}</p>
+        <p className="text-lg font-medium">{t("amount") || "Amount"}: {getCurrencySymbol(paymentData.currency)} {paymentData.price}</p>
         <p className="text-sm">{t("to") || "To"}: {paymentData.accountName}</p>
       </div>
       
@@ -281,6 +293,15 @@ const BookingPaymentComponent = ({
                     <Icon name="loader" className="h-8 w-8 animate-spin text-gray-400" />
                   </div>
                 )}
+              </div>
+
+              {/* Payment Amount */}
+              <div className="mt-4 text-center">
+                <h3 className="text-emphasis text-2xl font-bold">
+                  {getCurrencySymbol(paymentData.currency)} {paymentData.price}
+                  {/* Display whole number without decimal formatting */}
+                </h3>
+                <p className="text-sm">{t("to") || "To"}: {paymentData.accountName}</p>
               </div>
 
               {/* Instructions */}

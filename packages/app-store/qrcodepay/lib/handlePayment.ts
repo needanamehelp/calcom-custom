@@ -101,22 +101,25 @@ export async function handlePayment(
     // The payment data can contain a forceConfirmBooking flag from the BookingPaymentComponent
     const shouldForceConfirm = typeof paymentData === 'object' && 
       paymentData !== null && 
-      ('forceConfirmBooking' in paymentData ? !!paymentData.forceConfirmBooking : true);
+      ('forceConfirmBooking' in paymentData ? !!paymentData.forceConfirmBooking : false); // DEFAULT TO FALSE
     
-    console.log(`QRCodePay handlePayment: Booking status=${booking.status}, shouldForceConfirm=${shouldForceConfirm}`);
+    console.log(`QRCodePay handlePayment: Booking status=${booking.status}, shouldForceConfirm=${shouldForceConfirm}, paymentData=`, paymentData);
     
-    // CRITICAL FIX: ALWAYS update booking status to ACCEPTED
-    // This is a key requirement - bookings must be confirmed regardless of payment
-    // We force this for ALL bookings, not just ones with certain status
-    await prisma.booking.update({
-      where: {
-        id: bookingId,
-      },
-      data: {
-        status: BookingStatus.ACCEPTED,
-      },
-    });
-    console.log(`QRCodePay: Updated booking ${bookingId} status to ACCEPTED - FORCE CONFIRMED`);
+    // CRITICAL FIX: Only update booking status to ACCEPTED if specifically requested
+    // This allows the QR code to be shown and the payment to be properly processed
+    if (shouldForceConfirm || clientClaimedPaid) {
+      await prisma.booking.update({
+        where: {
+          id: bookingId,
+        },
+        data: {
+          status: BookingStatus.ACCEPTED,
+        },
+      });
+      console.log(`QRCodePay: Updated booking ${bookingId} status to ACCEPTED - Client paid or force confirm was set`);
+    } else {
+      console.log(`QRCodePay: Not auto-confirming booking ${bookingId} - Waiting for payment or explicit confirmation`);
+    }
     
     // Update payment data if the client claimed they paid
     if (clientClaimedPaid) {

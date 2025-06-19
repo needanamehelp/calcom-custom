@@ -254,11 +254,8 @@ export async function getBookings({
     // - If Current user is TEAM_OWNER/ADMIN, get bookings created for an event type within the team
     eventTypeIdsWhereUserIsAdminOrOwner?.length &&
       orConditions.push({ eventTypeId: { in: eventTypeIdsWhereUserIsAdminOrOwner } });
-    // 7. Scope depends on `user.orgId`:
-    // - If Current user is ORG_OWNER/ADMIN, get bookings created by users within the same organization
-    // - If Current user is TEAM_OWNER/ADMIN, get bookings created by users within the same organization
-    userIdsWhereUserIsAdminOrOwner?.length &&
-      orConditions.push({ userId: { in: userIdsWhereUserIsAdminOrOwner } });
+    // Removed condition that allowed users to see all bookings created by any user in their org/team
+    // This was causing users to see bookings that weren't made with them but with other users if they shared clients
   }
 
   const andConditions = [];
